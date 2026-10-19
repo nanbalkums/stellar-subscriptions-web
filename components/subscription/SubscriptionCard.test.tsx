@@ -128,4 +128,50 @@ describe("SubscriptionCard", () => {
     expect(screen.queryByRole("button", { name: /Pause|Resume|Cancel subscription/ })).not.toBeInTheDocument();
     expect(screen.getByText("The whole cap has been charged. Nothing more can be taken.")).toBeInTheDocument();
   });
+
+  describe("CommittedSpend", () => {
+    it("shows the remaining committed amount for a single token", () => {
+      renderCard(base);
+      // 120_000_000 - 30_000_000 = 90_000_000 stroops = 9 XLM
+      expect(screen.getByText(/9(\.0+)?\s*XLM/)).toBeInTheDocument();
+    });
+
+    it("never adds different tokens together", () => {
+      renderCard({ ...base, token: "CUSDC" });
+      // Only the subscription's own token is shown; no XLM figure leaks in.
+      expect(screen.queryByText(/XLM/)).not.toBeInTheDocument();
+    });
+
+    it("shows nothing committed when the cap is fully charged", () => {
+      renderCard({ ...base, status: SubStatus.Exhausted, totalCharged: 120_000_000n });
+      expect(screen.queryByText(/9(\.0+)?\s*XLM/)).not.toBeInTheDocument();
+    });
+  });
+
+  describe("NextChargeCountdown", () => {
+    it("reads as not-yet when the next charge is in the future", async () => {
+      renderCard(base);
+      expect(await screen.findByText(/Not before about/)).toBeInTheDocument();
+    });
+
+    it("reads as allowed-now when the next charge ledger has passed", async () => {
+      renderCard({ ...base, nextChargeLedger: 900 });
+      expect(await screen.findByText(/can be charged now/i)).toBeInTheDocument();
+    });
+
+    it("says none while paused", () => {
+      renderCard({ ...base, status: SubStatus.Paused });
+      expect(screen.getByText("None while paused")).toBeInTheDocument();
+    });
+
+    it("says none once cancelled", () => {
+      renderCard({ ...base, status: SubStatus.Cancelled });
+      expect(screen.getByText("None — cancelled")).toBeInTheDocument();
+    });
+
+    it("says none once the cap is fully charged", () => {
+      renderCard({ ...base, status: SubStatus.Exhausted, totalCharged: 120_000_000n });
+      expect(screen.getByText(/Nothing more can be taken/)).toBeInTheDocument();
+    });
+  });
 });
