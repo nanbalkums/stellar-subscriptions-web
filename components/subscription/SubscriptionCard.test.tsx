@@ -129,6 +129,48 @@ describe("SubscriptionCard", () => {
     expect(screen.getByText("The whole cap has been charged. Nothing more can be taken.")).toBeInTheDocument();
   });
 
+  describe("CapProgress", () => {
+    it("shows 0% when nothing has been charged", () => {
+      renderCard({ ...base, totalCharged: 0n });
+      const bar = screen.getByRole("progressbar", { name: "0% of the cap charged" });
+      expect(bar).toHaveAttribute("aria-valuenow", "0");
+      expect(bar).toHaveAttribute("aria-valuemin", "0");
+      expect(bar).toHaveAttribute("aria-valuemax", "100");
+    });
+
+    it("shows the partial percentage and matching aria-valuenow", () => {
+      renderCard(base);
+      const bar = screen.getByRole("progressbar", { name: "25% of the cap charged" });
+      expect(bar).toHaveAttribute("aria-valuenow", "25");
+      expect(bar).toHaveAttribute("aria-valuemin", "0");
+      expect(bar).toHaveAttribute("aria-valuemax", "100");
+    });
+
+    it("shows 100% when the whole cap has been charged", () => {
+      renderCard({ ...base, status: SubStatus.Exhausted, totalCharged: 120_000_000n });
+      const bar = screen.getByRole("progressbar", { name: "100% of the cap charged" });
+      expect(bar).toHaveAttribute("aria-valuenow", "100");
+    });
+
+    it("keeps the charged percentage visible once cancelled", () => {
+      renderCard({ ...base, status: SubStatus.Cancelled });
+      const bar = screen.getByRole("progressbar", { name: "25% of the cap charged" });
+      expect(bar).toHaveAttribute("aria-valuenow", "25");
+    });
+  });
+
+  describe("SubStatusBadge", () => {
+    it.each([
+      [SubStatus.Active, /Active/i],
+      [SubStatus.Paused, /Paused/i],
+      [SubStatus.Cancelled, /Cancelled/i],
+      [SubStatus.Exhausted, /Exhausted/i],
+    ])("renders a badge for %s", (status, label) => {
+      renderCard({ ...base, status });
+      expect(screen.getByText(label)).toBeInTheDocument();
+    });
+  });
+
   describe("CommittedSpend", () => {
     it("shows the remaining committed amount for a single token", () => {
       renderCard(base);
